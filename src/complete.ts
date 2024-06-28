@@ -1,4 +1,4 @@
-import {Completion, CompletionContext, CompletionSource, completeFromList, ifNotIn} from "@codemirror/autocomplete"
+import {Completion, CompletionContext, CompletionSource, completeFromList} from "@codemirror/autocomplete"
 import {EditorState, Text} from "@codemirror/state"
 import {syntaxTree} from "@codemirror/language"
 import {SyntaxNode} from "@lezer/common"
@@ -108,7 +108,7 @@ class CompletionLevel {
     let found = children[name]
     if (found) return found
     if (name && !this.list.some(c => c.label == name)) this.list.push(nameCompletion(name, "type", this.idQuote, this.idCaseInsensitive))
-    return (children[name] = new CompletionLevel(this.idQuote, this.idCaseInsensitive))
+      return (children[name] = new CompletionLevel(this.idQuote, this.idCaseInsensitive))
   }
 
   maybeChild(name: string) {
@@ -210,6 +210,29 @@ export function completeKeywords(keywords: {[name: string]: number}, upperCase: 
     type: keywords[keyword] == Type ? "type" : keywords[keyword] == Keyword ? "keyword" : "variable",
     boost: -1
   }))
-  return ifNotIn(["QuotedIdentifier", "SpecialVar", "String", "LineComment", "BlockComment", "."],
-                 completeFromList(completions))
+  const keywordsNodes = ["QuotedIdentifier", "SpecialVar", "String", "LineComment", "BlockComment", "."]
+  const keywordsSource = completeFromList(completions)
+
+  const variableNodes = ["VariableIn"]
+  const variableSource = completeFromList([{
+    label: 'mike',
+    type: 'variable',
+    boost: -1
+  }, {
+    label: 'mike2',
+    type: 'variable',
+    boost: -1
+  }])
+
+  return (context) => {
+    for (let pos = syntaxTree(context.state).resolveInner(context.pos, -1); pos; pos = pos.parent) {
+        if (keywordsNodes.indexOf(pos.name) > -1)
+            return null;
+        if (variableNodes.indexOf(pos.name) > -1)
+          return variableSource(context);
+        if (pos.type.isTop)
+            break;
+    }
+    return keywordsSource(context);
+  };
 }

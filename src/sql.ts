@@ -5,6 +5,7 @@ import {styleTags, tags as t} from "@lezer/highlight"
 import {parser as baseParser} from "./sql.grammar"
 import {tokens, Dialect, tokensFor, SQLKeywords, SQLTypes, dialect} from "./tokens"
 import {completeFromSchema, completeKeywords} from "./complete"
+import {customTags} from './tags'
 
 let parser = baseParser.configure({
   props: [
@@ -31,6 +32,9 @@ let parser = baseParser.configure({
       LineComment: t.lineComment,
       BlockComment: t.blockComment,
       Operator: t.operator,
+      VariableBegin: customTags.variableBegin,
+      VariableIn: customTags.variableIn,
+      VariableEnd: customTags.variableEnd,
       "Semi Punctuation": t.punctuation,
       "( )": t.paren,
       "{ }": t.brace,
@@ -76,7 +80,7 @@ export type SQLDialectSpec = {
   /// The characters that can be used to quote identifiers. Defaults
   /// to `"\""`.
   identifierQuotes?: string
-  /// Controls whether identifiers are case-insensitive. Identifiers
+    /// Controls whether identifiers are case-insensitive. Identifiers
   /// with upper-case letters are quoted when set to false (which is
   /// the default).
   caseInsensitiveIdentifiers?: boolean,
@@ -275,3 +279,6 @@ export const PLSQL = SQLDialect.define({
   charSetCasts: true,
   plsqlQuotingMechanism: true
 })
+
+
+export  { customTags }

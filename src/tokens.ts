@@ -2,7 +2,7 @@ import {ExternalTokenizer, InputStream} from "@lezer/lr"
 import {whitespace, LineComment, BlockComment, String as StringToken, Number, Bits, Bytes, Bool, Null,
         ParenL, ParenR, BraceL, BraceR, BracketL, BracketR, Semi, Dot,
         Operator, Punctuation, SpecialVar, Identifier, QuotedIdentifier,
-        Keyword, Type, Builtin} from "./sql.grammar.terms"
+        Keyword, Type, Builtin, VariableBegin, VariableIn, VariableEnd} from "./sql.grammar.terms"
 
 const enum Ch {
   Newline = 10,
@@ -202,18 +202,34 @@ export function dialect(spec: Partial<Dialect>, kws?: string, types?: string, bu
 }
 
 export function tokensFor(d: Dialect) {
+
+  const VARIABLE_STATUS = {
+    begin: 0,
+    in: 1,
+    end: 2
+  }
+  let variableStatus = VARIABLE_STATUS.end
   return new ExternalTokenizer(input => {
     let {next} = input
     input.advance()
-    if (inString(next, Space)) {
+    if(variableStatus === VARIABLE_STATUS.in && isAlpha(next)) {
+      input.acceptToken(VariableIn)
+    } else if (inString(next, Space)) {
       while (inString(input.next, Space)) input.advance()
       input.acceptToken(whitespace)
-    } else if (next == Ch.Dollar && d.doubleDollarQuotedStrings) {
-      let tag = readWord(input, "")
-      if (input.next == Ch.Dollar) {
+    } else if (next == Ch.Dollar ) {
+      if(input.next === Ch.BraceL && variableStatus === VARIABLE_STATUS.end) {
         input.advance()
-        readDoubleDollarLiteral(input, tag)
-        input.acceptToken(StringToken)
+        variableStatus = VARIABLE_STATUS.in
+        input.acceptToken(VariableBegin)
+      }
+      if(d.doubleDollarQuotedStrings) {
+        let tag = readWord(input, "")
+        if (input.next == Ch.Dollar) {
+          input.advance()
+          readDoubleDollarLiteral(input, tag)
+          input.acceptToken(StringToken)
+        }
       }
     } else if (next == Ch.SingleQuote || next == Ch.DoubleQuote && d.doubleQuotedStrings) {
       readLiteral(input, next, d.backslashEscapes)
@@ -276,7 +292,12 @@ export function tokensFor(d: Dialect) {
     } else if (next == Ch.BraceL) {
       input.acceptToken(BraceL)
     } else if (next == Ch.BraceR) {
-      input.acceptToken(BraceR)
+      if(variableStatus === VARIABLE_STATUS.in) {
+        variableStatus = VARIABLE_STATUS.end 
+        input.acceptToken(VariableEnd)
+      } else {
+        input.acceptToken(BraceR)
+      }
     } else if (next == Ch.BracketL) {
       input.acceptToken(BracketL)
     } else if (next == Ch.BracketR) {
