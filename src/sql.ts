@@ -4,7 +4,7 @@ import {Completion, CompletionSource} from "@codemirror/autocomplete"
 import {styleTags, tags as t} from "@lezer/highlight"
 import {parser as baseParser} from "./sql.grammar"
 import {tokens, Dialect, tokensFor, SQLKeywords, SQLTypes, dialect} from "./tokens"
-import {completeFromSchema, completeKeywords} from "./complete"
+import {completeFromSchema, completeKeywords, completeVariable} from "./complete"
 import {customTags} from './tags'
 
 let parser = baseParser.configure({
@@ -153,6 +153,8 @@ export interface SQLConfig {
   defaultSchema?: string,
   /// When set to true, keyword completions will be upper-case.
   upperCaseKeywords?: boolean
+  /// 
+  variableCompletionConfig?: Object
 }
 
 /// Returns a completion source that provides keyword completion for
@@ -165,6 +167,12 @@ export function keywordCompletionSource(dialect: SQLDialect, upperCase = false):
 export function keywordCompletion(dialect: SQLDialect, upperCase = false): Extension {
   return dialect.language.data.of({
     autocomplete: keywordCompletionSource(dialect, upperCase)
+  })
+}
+
+export function variableCompletion(dialect: SQLDialect, variableCompletionConfig?: Object): Extension {
+  return dialect.language.data.of({
+    autocomplete: completeVariable(variableCompletionConfig)
   })
 }
 
@@ -189,7 +197,8 @@ export function schemaCompletion(config: SQLConfig): Extension {
 /// extensions.
 export function sql(config: SQLConfig = {}) {
   let lang = config.dialect || StandardSQL
-  return new LanguageSupport(lang.language, [schemaCompletion(config), keywordCompletion(lang, !!config.upperCaseKeywords)])
+  const { variableCompletionConfig } = config ?? {}
+  return new LanguageSupport(lang.language, [schemaCompletion(config), keywordCompletion(lang, !!config.upperCaseKeywords), variableCompletion(lang, variableCompletionConfig)])
 }
 
 /// The standard SQL dialect.

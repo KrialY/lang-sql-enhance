@@ -205,23 +205,25 @@ export function tokensFor(d: Dialect) {
 
   const VARIABLE_STATUS = {
     begin: 0,
-    in: 1,
-    end: 2
+    in: 1
   }
-  let variableStatus = VARIABLE_STATUS.end
+  let variableStatus = VARIABLE_STATUS.begin
   return new ExternalTokenizer(input => {
     let {next} = input
     input.advance()
     if(variableStatus === VARIABLE_STATUS.in && isAlpha(next)) {
       input.acceptToken(VariableIn)
+      input.advance()
     } else if (inString(next, Space)) {
       while (inString(input.next, Space)) input.advance()
       input.acceptToken(whitespace)
     } else if (next == Ch.Dollar ) {
-      if(input.next === Ch.BraceL && variableStatus === VARIABLE_STATUS.end) {
+      if(input.next === Ch.BraceL) {
         input.advance()
         variableStatus = VARIABLE_STATUS.in
         input.acceptToken(VariableBegin)
+      } else {
+        variableStatus = VARIABLE_STATUS.begin
       }
       if(d.doubleDollarQuotedStrings) {
         let tag = readWord(input, "")
@@ -293,7 +295,7 @@ export function tokensFor(d: Dialect) {
       input.acceptToken(BraceL)
     } else if (next == Ch.BraceR) {
       if(variableStatus === VARIABLE_STATUS.in) {
-        variableStatus = VARIABLE_STATUS.end 
+        variableStatus = VARIABLE_STATUS.begin 
         input.acceptToken(VariableEnd)
       } else {
         input.acceptToken(BraceR)
